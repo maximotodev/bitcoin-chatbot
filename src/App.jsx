@@ -32,15 +32,30 @@ function App() {
     setIsLoading(true); // Start loading indicator
 
     try {
-      // Make the POST request to your Flask backend
-      const response = await fetch("http://127.0.0.1:5000/ask", {
-        // <-- Make sure this URL matches your Flask server
+      // Use the environment variable for the API URL
+      const apiUrl = import.meta.env.VITE_API_URL + "/ask"; // Add the /ask endpoint
+      if (!apiUrl || apiUrl === "/ask") {
+        // Basic check if variable was loaded
+        throw new Error("API URL is not configured.");
+      }
+
+      const response = await fetch(apiUrl, {
+        // <-- Use the variable here
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: input }), // Send the question as JSON
+        body: JSON.stringify({ question: input }),
       });
+      // Make the POST request to your Flask backend
+      // const response = await fetch("http://127.0.0.1:5000/ask", {
+      //   // <-- Make sure this URL matches your Flask server
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({ question: input }), // Send the question as JSON
+      // });
 
       if (!response.ok) {
         // Handle HTTP errors (e.g., 400, 500)
