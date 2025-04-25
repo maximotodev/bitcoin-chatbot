@@ -1,65 +1,60 @@
 import React, { useState, useRef, useEffect } from "react";
-// import './App.css'; // You can create this file for styling
+// import './App.css'; // We'll use inline styles for simplicity here
 
 function App() {
-  const [messages, setMessages] = useState([]); // Array to hold chat messages
-  const [input, setInput] = useState(""); // State for the current input value
-  const [isLoading, setIsLoading] = useState(false); // State to show loading indicator
-  const chatBoxRef = useRef(null); // Ref for scrolling to the bottom
+  // messages state now holds the full conversation history
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const chatBoxRef = useRef(null); // Ref for scrolling
 
-  // Scroll to the bottom of the chat box whenever messages update
+  // Scroll to the bottom when messages change or loading state changes (to show 'Thinking...')
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isLoading]); // Also scroll when isLoading changes
 
   const handleInputChange = (event) => {
     setInput(event.target.value);
   };
 
   const handleSendMessage = async (event) => {
-    event.preventDefault(); // Prevent page reload on form submission
+    event.preventDefault();
 
-    if (!input.trim() || isLoading) {
-      return; // Don't send empty messages or if loading
+    const userQuestion = input.trim();
+    if (!userQuestion || isLoading) {
+      return;
     }
 
-    const userMessage = { type: "user", text: input };
     // Add user message instantly to UI
+    const userMessage = { type: "user", text: userQuestion };
+    // Use functional update to ensure we have the latest messages state
     setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setInput(""); // Clear input field
-    setIsLoading(true); // Start loading indicator
+    setInput("");
+    setIsLoading(true);
 
     try {
       // Use the environment variable for the API URL
-      const apiUrl = import.meta.env.VITE_API_URL + "/ask"; // Add the /ask endpoint
+      const apiUrl = import.meta.env.VITE_API_URL + "/ask";
       if (!apiUrl || apiUrl === "/ask") {
-        // Basic check if variable was loaded
         throw new Error("API URL is not configured.");
       }
 
+      // Send the full current messages history PLUS the new question
       const response = await fetch(apiUrl, {
-        // <-- Use the variable here
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ question: input }),
+        body: JSON.stringify({
+          question: userQuestion,
+          history: [...messages, userMessage], // Send history including the message just added
+        }),
       });
-      // Make the POST request to your Flask backend
-      // const response = await fetch("http://127.0.0.1:5000/ask", {
-      //   // <-- Make sure this URL matches your Flask server
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ question: input }), // Send the question as JSON
-      // });
 
       if (!response.ok) {
-        // Handle HTTP errors (e.g., 400, 500)
-        const errorData = await response.json(); // Try to parse error response
+        const errorData = await response.json();
         throw new Error(
           `HTTP error! status: ${response.status}, message: ${
             errorData.error || response.statusText
@@ -67,56 +62,62 @@ function App() {
         );
       }
 
-      const data = await response.json(); // Parse the JSON response from Flask
+      const data = await response.json();
       const botResponse = { type: "bot", text: data.answer };
 
       // Add bot response to UI
       setMessages((prevMessages) => [...prevMessages, botResponse]);
     } catch (error) {
       console.error("Error sending message:", error);
-      // Display an error message in the chat
       setMessages((prevMessages) => [
         ...prevMessages,
         { type: "bot", text: `Error: ${error.message}` },
       ]);
     } finally {
-      setIsLoading(false); // Stop loading indicator regardless of success or failure
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="chat-container">
       <h1>Bitcoin Chatbot</h1>
+      {/* Chat Box displays all messages */}
       <div className="chat-box" ref={chatBoxRef}>
         {messages.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#666" }}>
+          <div
+            style={{ textAlign: "center", color: "#666", marginTop: "20px" }}
+          >
             Ask me anything about Bitcoin!
           </div>
         ) : (
           messages.map((message, index) => (
+            // Use index as key - better to use unique IDs if messages had them
             <div key={index} className={`message ${message.type}-message`}>
-              <strong>{message.type === "user" ? "You" : "Chatbot"}:</strong>{" "}
+              <strong>{message.type === "user" ? "You" : "Chatbot"}:</strong>
+              {/* Basic rendering - could add markdown parsing here */}
               {message.text}
             </div>
           ))
         )}
+        {/* Loading indicator */}
         {isLoading && (
-          <div className="message bot-message">
+          <div className="message bot-message loading-message">
             <strong>Chatbot:</strong> Thinking...
           </div>
         )}
       </div>
 
+      {/* Input Form */}
       <form onSubmit={handleSendMessage}>
         <input
           type="text"
           value={input}
           onChange={handleInputChange}
           placeholder="Ask me about Bitcoin..."
-          disabled={isLoading} // Disable input while loading
+          disabled={isLoading}
         />
         <button type="submit" disabled={isLoading}>
-          {isLoading ? "..." : "Ask"} {/* Button text changes when loading */}
+          {isLoading ? "..." : "Ask"}
         </button>
       </form>
 
@@ -125,7 +126,7 @@ function App() {
         advice.
       </p>
 
-      {/* Basic Styling - You would typically put this in App.css */}
+      {/* Basic Styling Block */}
       <style>{`
            body {
                font-family: sans-serif;
@@ -136,52 +137,62 @@ function App() {
            }
            .chat-container {
                max-width: 800px;
-               margin: 40px auto;
+               margin: 20px auto; /* Less margin */
                background-color: #fff;
                padding: 20px;
                border-radius: 8px;
                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-               display: flex; /* Use flexbox for layout */
+               display: flex;
                flex-direction: column;
-               height: 80vh; /* Give it a fixed height */
+               height: 90vh; /* Make it a bit taller */
+               box-sizing: border-box; /* Include padding in height */
            }
            h1 {
                text-align: center;
                color: #f7931a; /* Bitcoin orange */
+               margin-top: 0;
                margin-bottom: 20px;
            }
            .chat-box {
-               flex-grow: 1; /* Takes up remaining space */
+               flex-grow: 1;
                border: 1px solid #eee;
                padding: 15px;
-               margin-bottom: 20px;
+               margin-bottom: 15px; /* Less margin */
                border-radius: 5px;
-               overflow-y: auto; /* Add scroll for overflow */
+               overflow-y: auto;
                display: flex;
                flex-direction: column;
+               /* Add some padding at the bottom to prevent last message being hidden */
+               padding-bottom: 15px;
            }
            .message {
-               margin-bottom: 10px; /* Slightly less margin */
+               margin-bottom: 10px;
                padding: 10px;
                border-radius: 8px;
                max-width: 80%;
-               word-wrap: break-word; /* Prevent long words from overflowing */
+               word-wrap: break-word;
            }
            .user-message {
                align-self: flex-end;
-               background-color: #e1ffc7;
+               background-color: #e1ffc7; /* Light green */
            }
            .bot-message {
                align-self: flex-start;
-               background-color: #cce5ff;
+               background-color: #cce5ff; /* Light blue */
            }
             .message strong {
                 display: block;
-                margin-bottom: 3px; /* Less margin below name */
+                margin-bottom: 3px;
+            }
+            .loading-message {
+                font-style: italic;
+                color: #555;
             }
            form {
                display: flex;
-               margin-top: auto; /* Push form to the bottom */
+               margin-top: auto;
+               padding-top: 15px; /* Add padding above form */
+               border-top: 1px solid #eee; /* Separator line */
            }
            input[type="text"] {
                flex-grow: 1;
@@ -208,7 +219,7 @@ function App() {
                background-color: #e08516;
            }
             .disclaimer {
-               margin-top: 15px; /* Less margin */
+               margin-top: 15px;
                text-align: center;
                font-size: 0.8em;
                color: #666;
