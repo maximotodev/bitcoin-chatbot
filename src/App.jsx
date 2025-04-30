@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from "react";
 // import './App.css'; // We'll use inline styles for simplicity here
+import ReactMarkdown from "react-markdown"; // Import ReactMarkdown
+import remarkGfm from "remark-gfm"; // Import the GFM plugin
 
 function App() {
-  // messages state now holds the full conversation history
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const chatBoxRef = useRef(null); // Ref for scrolling
+  const chatBoxRef = useRef(null);
 
-  // Scroll to the bottom when messages change or loading state changes (to show 'Thinking...')
+  // Scroll to the bottom when messages change or loading state changes
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
-  }, [messages, isLoading]); // Also scroll when isLoading changes
+  }, [messages, isLoading]);
 
   const handleInputChange = (event) => {
     setInput(event.target.value);
@@ -27,21 +28,17 @@ function App() {
       return;
     }
 
-    // Add user message instantly to UI
     const userMessage = { type: "user", text: userQuestion };
-    // Use functional update to ensure we have the latest messages state
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInput("");
     setIsLoading(true);
 
     try {
-      // Use the environment variable for the API URL
       const apiUrl = import.meta.env.VITE_API_URL + "/ask";
       if (!apiUrl || apiUrl === "/ask") {
         throw new Error("API URL is not configured.");
       }
 
-      // Send the full current messages history PLUS the new question
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -49,7 +46,7 @@ function App() {
         },
         body: JSON.stringify({
           question: userQuestion,
-          history: [...messages, userMessage], // Send history including the message just added
+          history: [...messages, userMessage],
         }),
       });
 
@@ -65,7 +62,6 @@ function App() {
       const data = await response.json();
       const botResponse = { type: "bot", text: data.answer };
 
-      // Add bot response to UI
       setMessages((prevMessages) => [...prevMessages, botResponse]);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -81,7 +77,6 @@ function App() {
   return (
     <div className="chat-container">
       <h1>Bitcoin Chatbot</h1>
-      {/* Chat Box displays all messages */}
       <div className="chat-box" ref={chatBoxRef}>
         {messages.length === 0 ? (
           <div
@@ -91,15 +86,21 @@ function App() {
           </div>
         ) : (
           messages.map((message, index) => (
-            // Use index as key - better to use unique IDs if messages had them
             <div key={index} className={`message ${message.type}-message`}>
               <strong>{message.type === "user" ? "You" : "Chatbot"}:</strong>
-              {/* Basic rendering - could add markdown parsing here */}
-              {message.text}
+              {/* Conditionally render Markdown only for bot messages */}
+              {message.type === "bot" ? (
+                // Use ReactMarkdown to render bot message text
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.text}
+                </ReactMarkdown>
+              ) : (
+                // Display user message as plain text
+                message.text
+              )}
             </div>
           ))
         )}
-        {/* Loading indicator */}
         {isLoading && (
           <div className="message bot-message loading-message">
             <strong>Chatbot:</strong> Thinking...
@@ -107,7 +108,6 @@ function App() {
         )}
       </div>
 
-      {/* Input Form */}
       <form onSubmit={handleSendMessage}>
         <input
           type="text"
@@ -126,7 +126,7 @@ function App() {
         advice.
       </p>
 
-      {/* Basic Styling Block */}
+      {/* Basic Styling Block - Add styles for Markdown elements here if needed */}
       <style>{`
            body {
                font-family: sans-serif;
@@ -137,15 +137,15 @@ function App() {
            }
            .chat-container {
                max-width: 800px;
-               margin: 20px auto; /* Less margin */
+               margin: 20px auto;
                background-color: #fff;
                padding: 20px;
                border-radius: 8px;
                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
                display: flex;
                flex-direction: column;
-               height: 90vh; /* Make it a bit taller */
-               box-sizing: border-box; /* Include padding in height */
+               height: 90vh;
+               box-sizing: border-box;
            }
            h1 {
                text-align: center;
@@ -157,12 +157,11 @@ function App() {
                flex-grow: 1;
                border: 1px solid #eee;
                padding: 15px;
-               margin-bottom: 15px; /* Less margin */
+               margin-bottom: 15px;
                border-radius: 5px;
                overflow-y: auto;
                display: flex;
                flex-direction: column;
-               /* Add some padding at the bottom to prevent last message being hidden */
                padding-bottom: 15px;
            }
            .message {
@@ -174,11 +173,11 @@ function App() {
            }
            .user-message {
                align-self: flex-end;
-               background-color: #e1ffc7; /* Light green */
+               background-color: #e1ffc7;
            }
            .bot-message {
                align-self: flex-start;
-               background-color: #cce5ff; /* Light blue */
+               background-color: #cce5ff;
            }
             .message strong {
                 display: block;
@@ -191,8 +190,8 @@ function App() {
            form {
                display: flex;
                margin-top: auto;
-               padding-top: 15px; /* Add padding above form */
-               border-top: 1px solid #eee; /* Separator line */
+               padding-top: 15px;
+               border-top: 1px solid #eee;
            }
            input[type="text"] {
                flex-grow: 1;
@@ -207,7 +206,7 @@ function App() {
                background-color: #f7931a;
                color: white;
                border: none;
-               border-radius: 4px;
+               border-radius: 4 occupiers;
                cursor: pointer;
                font-size: 1em;
            }
@@ -224,6 +223,33 @@ function App() {
                font-size: 0.8em;
                color: #666;
            }
+
+           /* --- Add basic styles for Markdown elements within bot messages --- */
+           .bot-message p { margin-bottom: 0.5em; } /* Space out paragraphs */
+           .bot-message ul, .bot-message ol { margin-bottom: 0.5em; padding-left: 20px; } /* Basic list styling */
+           .bot-message li { margin-bottom: 0.2em; }
+           .bot-message code {
+                background-color: #eee;
+                padding: 2px 4px;
+                border-radius: 4px;
+                font-family: monospace;
+           }
+           .bot-message pre {
+                background-color: #eee;
+                padding: 10px;
+                border-radius: 4px;
+                overflow-x: auto; /* Prevent overflow for long code lines */
+                font-family: monospace;
+           }
+           .bot-message blockquote {
+               border-left: 4px solid #ccc;
+               padding-left: 10px;
+               margin-left: 0;
+               color: #666;
+               font-style: italic;
+           }
+           /* Add more styles for h1-h6, hr, table etc if the AI is expected to use them */
+
        `}</style>
     </div>
   );
