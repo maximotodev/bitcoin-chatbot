@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// Optional: Create a simple TypingIndicator component
 const TypingIndicator = () => (
   <div className="message bot-message loading-message">
     <strong>Chatbot:</strong>
@@ -14,54 +13,51 @@ const TypingIndicator = () => (
   </div>
 );
 
-// Key for localStorage
 const LOCAL_STORAGE_KEY = "bitcoinChatHistory";
 
+// Helper function for adding delay
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function App() {
-  // Initialize messages state by trying to load from localStorage
-  // This will only run once when the component first mounts
   const [messages, setMessages] = useState(() => {
     try {
       const savedHistory = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedHistory) {
-        // Parse the saved string back into an array
         const parsedHistory = JSON.parse(savedHistory);
-        // Basic validation: check if it's actually an array
         if (Array.isArray(parsedHistory)) {
           return parsedHistory;
         } else {
           console.error("LocalStorage data was not an array.");
-          localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear invalid data
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
           return [];
         }
       }
     } catch (error) {
       console.error("Error loading chat history from localStorage:", error);
-      // Clear any potentially corrupted data
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
-    // If no saved history, or error occurred, start with an empty array
     return [];
   });
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  // New state to track if the tour is currently playing
+  const [isTouring, setIsTouring] = useState(false);
 
   const chatBoxRef = useRef(null);
   const latestMessageRef = useRef(null);
 
-  // Effect to save messages to localStorage whenever the messages state changes
+  // Effect to save messages to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(messages));
     } catch (error) {
       console.error("Error saving chat history to localStorage:", error);
-      // Handle potential storage full errors if needed (less likely for text)
     }
-  }, [messages]); // Dependency array: this effect runs whenever 'messages' changes
+  }, [messages]);
 
-  // Effect to scroll to the latest message or indicator whenever messages or typing state changes
+  // Effect to scroll to the latest message or indicator
   useEffect(() => {
     if (latestMessageRef.current) {
       latestMessageRef.current.scrollIntoView({ behavior: "smooth" });
@@ -76,41 +72,32 @@ function App() {
     event.preventDefault();
 
     const userQuestion = input.trim();
-    if (!userQuestion || isLoading) {
+    // Disable sending message if already loading OR if the tour is playing
+    if (!userQuestion || isLoading || isTouring) {
       return;
     }
 
-    // Add user message instantly to UI and localStorage state
     const userMessage = { type: "user", text: userQuestion };
-    // Use functional update to ensure we have the latest messages state for the API call
-    setMessages((prevMessages) => [...prevMessages, userMessage]); // This state update will trigger the save useEffect shortly
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInput("");
     setIsLoading(true);
-    setIsBotTyping(true); // Show typing indicator
+    setIsBotTyping(true);
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL + "/ask";
       if (!apiUrl || apiUrl === "/ask") {
         const errorMsg = "API URL is not configured.";
         console.error(errorMsg);
-        setIsBotTyping(false); // Clear typing indicator
-        // Add an error message bubble
+        setIsBotTyping(false);
         setMessages((prevMessages) => [
           ...prevMessages,
           { type: "error", text: errorMsg },
         ]);
-        setIsLoading(false); // Stop overall loading
+        setIsLoading(false);
         return;
       }
 
-      // Important: Send the history from the *current* state, including the user's message just added
-      // The setMessages call above *might* not have completed yet, so use the functional update pattern
-      // or pass `messages` directly and append the user message. Let's keep it simple by
-      // sending the history from the state *after* we know the user message is added to the queue.
-      // A safer way might be to append the user message directly to the `messages` array *before*
-      // the setMessages call for the send, but relying on React's state batching is usually fine.
-      // Let's pass `[...messages, userMessage]` to the API call directly for clarity.
-      const historyForApi = [...messages, userMessage];
+      const historyForApi = [...messages, userMessage]; // Include the new user message in history sent to API
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -119,12 +106,11 @@ function App() {
         },
         body: JSON.stringify({
           question: userQuestion,
-          history: historyForApi, // Send the history including the message just added
+          history: historyForApi,
         }),
       });
 
-      // Clear typing indicator once response is received (even if it's an error response)
-      setIsBotTyping(false);
+      setIsBotTyping(false); // Clear typing indicator once response is received
 
       if (!response.ok) {
         const errorData = await response
@@ -134,53 +120,142 @@ function App() {
           errorData.error || "Unknown Error"
         }`;
         console.error("Error sending message:", errorMsg);
-        // Add an error message bubble
         setMessages((prevMessages) => [
           ...prevMessages,
           { type: "error", text: errorMsg },
         ]);
-        setIsLoading(false); // Stop overall loading
+        setIsLoading(false);
         return;
       }
 
       const data = await response.json();
       const botResponse = { type: "bot", text: data.answer };
 
-      // Add bot response to UI state (this will trigger the save useEffect)
       setMessages((prevMessages) => [...prevMessages, botResponse]);
     } catch (error) {
       console.error("Error sending message:", error);
-      setIsBotTyping(false); // Clear typing indicator
-      // Add a general error message bubble
+      setIsBotTyping(false);
       setMessages((prevMessages) => [
         ...prevMessages,
         { type: "error", text: `Request failed: ${error.message}` },
       ]);
     } finally {
-      setIsLoading(false); // Stop overall loading regardless of success or failure
-      // setIsBotTyping is handled in try/catch/return blocks
+      setIsLoading(false);
     }
   };
 
-  // Function to clear chat history
   const handleClearHistory = () => {
-    setMessages([]); // Clear state (triggers save useEffect to save empty array)
-    // Optionally, explicitly remove from localStorage, though the save useEffect handles it
-    // localStorage.removeItem(LOCAL_STORAGE_KEY);
+    setMessages([]); // Clear state (triggers save useEffect)
     console.log("Chat history cleared.");
+  };
+
+  // New function to handle starting the tour
+  const handleStartTour = async () => {
+    // Disable starting tour if already loading, typing, or touring
+    if (isLoading || isBotTyping || isTouring) {
+      return;
+    }
+
+    setIsTouring(true); // Set touring state
+    setIsBotTyping(true); // Show typing indicator initially for the fetch
+    setMessages([]); // Optionally clear existing chat history for the tour
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL + "/tour"; // Fetch from the new /tour endpoint
+      if (!apiUrl || apiUrl === "/tour") {
+        const errorMsg = "API URL is not configured for tour.";
+        console.error(errorMsg);
+        setIsBotTyping(false);
+        // Add an error message bubble specific to the tour fetch
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { type: "error", text: `Tour failed: ${errorMsg}` },
+        ]);
+        setIsTouring(false);
+        return;
+      }
+
+      const response = await fetch(apiUrl); // Use GET request
+      setIsBotTyping(false); // Clear typing indicator once tour data is fetched
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: response.statusText }));
+        const errorMsg = `Tour API Error: ${response.status} - ${
+          errorData.error || "Unknown Error"
+        }`;
+        console.error("Error fetching tour data:", errorMsg);
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { type: "error", text: `Tour failed: ${errorMsg}` },
+        ]);
+        setIsTouring(false);
+        return;
+      }
+
+      const data = await response.json();
+      const tourMessages = data.tour; // Expecting the list of messages under 'tour' key
+
+      if (!Array.isArray(tourMessages)) {
+        const errorMsg = "Invalid tour data format from API.";
+        console.error(errorMsg, data);
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { type: "error", text: `Tour failed: ${errorMsg}` },
+        ]);
+        setIsTouring(false);
+        return;
+      }
+
+      // Display messages one by one with a delay
+      for (const msgText of tourMessages) {
+        const botMessage = { type: "bot", text: msgText };
+        setMessages((prevMessages) => [...prevMessages, botMessage]);
+        setIsBotTyping(true); // Show typing indicator between messages
+        await delay(msgText.length * 40 + 1000); // Simulate typing delay (adjust factor as needed) + base delay
+        setIsBotTyping(false); // Hide indicator after message
+      }
+    } catch (error) {
+      console.error("Error during tour:", error);
+      setIsBotTyping(false);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          type: "error",
+          text: `An unexpected error occurred during the tour: ${error.message}`,
+        },
+      ]);
+    } finally {
+      setIsTouring(false); // Ensure touring state is off
+      setIsBotTyping(false); // Ensure typing indicator is off
+    }
   };
 
   return (
     <div className="chat-container">
       <h1>Bitcoin Chatbot</h1>
 
-      {/* Clear History Button */}
-      <button className="clear-history-button" onClick={handleClearHistory}>
-        Clear History
-      </button>
+      {/* Buttons Area */}
+      <div className="button-container">
+        <button
+          className="tour-button"
+          onClick={handleStartTour}
+          disabled={isLoading || isTouring}
+        >
+          Introductory Tour
+        </button>
+        <button
+          className="clear-history-button"
+          onClick={handleClearHistory}
+          disabled={isLoading || isTouring}
+        >
+          Clear History
+        </button>
+      </div>
 
       <div className="chat-box" ref={chatBoxRef}>
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isBotTyping && !isTouring ? ( // Show initial text only when empty and not loading/touring
           <div
             style={{ textAlign: "center", color: "#666", marginTop: "20px" }}
           >
@@ -189,8 +264,9 @@ function App() {
         ) : (
           messages.map((message, index) => (
             <div
-              key={index} // Using index as key is okay for this simple case where messages aren't reordered/deleted mid-list
+              key={index}
               className={`message ${message.type}-message`}
+              // Ref goes to the last message if not typing/touring, OR to the typing indicator itself
               ref={
                 index === messages.length - 1 && !isBotTyping
                   ? latestMessageRef
@@ -215,8 +291,10 @@ function App() {
             </div>
           ))
         )}
-        {/* Loading indicator */}
-        {isBotTyping && <TypingIndicator ref={latestMessageRef} />}
+        {/* Loading/Typing indicator - now controlled by isBotTyping */}
+        {isBotTyping && (
+          <TypingIndicator ref={latestMessageRef} /> // Typing indicator also gets the ref
+        )}
       </div>
 
       {/* Input Form */}
@@ -226,9 +304,11 @@ function App() {
           value={input}
           onChange={handleInputChange}
           placeholder="Ask me about Bitcoin..."
-          disabled={isLoading}
+          disabled={isLoading || isTouring} // Disable input if loading OR touring
         />
-        <button type="submit" disabled={isLoading}>
+        <button type="submit" disabled={isLoading || isTouring}>
+          {" "}
+          {/* Disable button if loading OR touring */}
           {isLoading ? "..." : "Ask"}
         </button>
       </form>
@@ -266,7 +346,7 @@ function App() {
                height: 90vh;
                box-sizing: border-box;
                overflow: hidden;
-               position: relative; /* Needed for positioning clear button */
+               position: relative;
            }
             @media (max-width: 768px) {
                  .chat-container {
@@ -284,29 +364,49 @@ function App() {
                font-size: 1.8em;
            }
 
-           /* Style for the Clear History Button */
-            .clear-history-button {
-                position: absolute;
-                top: 20px; /* Adjust position as needed */
-                right: 20px; /* Adjust position as needed */
-                padding: 5px 10px;
-                background-color: #ced4da; /* Light grey */
-                color: #495057; /* Darker grey text */
+           /* Container for the buttons */
+            .button-container {
+                display: flex;
+                justify-content: center; /* Center buttons */
+                gap: 10px; /* Space between buttons */
+                margin-bottom: 15px; /* Space below buttons */
+                 flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+            }
+
+           /* Style for the Tour Button */
+            .tour-button {
+                padding: 8px 15px;
+                background-color: #28a745; /* Success green */
+                color: white;
                 border: none;
                 border-radius: 5px;
                 cursor: pointer;
-                font-size: 0.8em;
+                font-size: 0.9em;
                 transition: background-color 0.2s ease-in-out;
-                z-index: 10; /* Ensure it's above other elements */
             }
-            .clear-history-button:hover {
-                background-color: #adb5bd; /* Slightly darker grey */
+             .tour-button:hover:not(:disabled) {
+                 background-color: #218838; /* Darker green */
+             }
+
+
+           /* Style for the Clear History Button */
+            .clear-history-button {
+                padding: 8px 15px;
+                background-color: #ced4da;
+                color: #495057;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: background-color 0.2s ease-in-out;
             }
-            @media (max-width: 768px) {
-                 .clear-history-button {
-                     top: 15px;
-                     right: 15px;
-                 }
+            .clear-history-button:hover:not(:disabled) {
+                background-color: #adb5bd;
+            }
+            /* Disable style for buttons */
+            .button-container button:disabled {
+                 opacity: 0.6;
+                 cursor: not-allowed;
             }
 
 
@@ -358,7 +458,7 @@ function App() {
                 max-width: 90%;
                 text-align: center;
                 border-radius: 8px;
-                margin-top: 10px; /* Add margin top to error bubbles */
+                margin-top: 10px;
             }
 
            .message strong {
@@ -413,7 +513,7 @@ function App() {
                border-color: #007bff;
            }
 
-           button {
+           button { /* Applies to form submit button */
                padding: 12px 25px;
                background-color: #f7931a;
                color: white;
@@ -423,14 +523,15 @@ function App() {
                font-size: 1em;
                transition: background-color 0.2s ease-in-out;
            }
-           button:disabled {
+            button:disabled {
                background-color: #cccccc;
                cursor: not-allowed;
                opacity: 0.6;
-           }
-           button:hover:not(:disabled) {
+            }
+            button:hover:not(:disabled) {
                background-color: #e08516;
-           }
+            }
+
 
             .disclaimer {
                margin-top: 15px;
