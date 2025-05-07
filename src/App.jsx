@@ -1,6 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-// If you move styles to App.css, uncomment the line below:
-// import './App.css';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -16,22 +14,59 @@ const TypingIndicator = () => (
   </div>
 );
 
+// Key for localStorage
+const LOCAL_STORAGE_KEY = "bitcoinChatHistory";
+
 function App() {
-  const [messages, setMessages] = useState([]);
+  // Initialize messages state by trying to load from localStorage
+  // This will only run once when the component first mounts
+  const [messages, setMessages] = useState(() => {
+    try {
+      const savedHistory = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedHistory) {
+        // Parse the saved string back into an array
+        const parsedHistory = JSON.parse(savedHistory);
+        // Basic validation: check if it's actually an array
+        if (Array.isArray(parsedHistory)) {
+          return parsedHistory;
+        } else {
+          console.error("LocalStorage data was not an array.");
+          localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear invalid data
+          return [];
+        }
+      }
+    } catch (error) {
+      console.error("Error loading chat history from localStorage:", error);
+      // Clear any potentially corrupted data
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+    // If no saved history, or error occurred, start with an empty array
+    return [];
+  });
+
   const [input, setInput] = useState("");
-  // Use separate states for overall loading and specific bot typing state
-  const [isLoading, setIsLoading] = useState(false); // Overall fetch state
-  const [isBotTyping, setIsBotTyping] = useState(false); // Only for the 'Thinking...' state display
+  const [isLoading, setIsLoading] = useState(false);
+  const [isBotTyping, setIsBotTyping] = useState(false);
 
-  const chatBoxRef = useRef(null); // Ref for the chat box container
-  const latestMessageRef = useRef(null); // Ref for the very last message/indicator
+  const chatBoxRef = useRef(null);
+  const latestMessageRef = useRef(null);
 
-  // Effect to scroll to the latest message or indicator whenever messages or loading state changes
+  // Effect to save messages to localStorage whenever the messages state changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(messages));
+    } catch (error) {
+      console.error("Error saving chat history to localStorage:", error);
+      // Handle potential storage full errors if needed (less likely for text)
+    }
+  }, [messages]); // Dependency array: this effect runs whenever 'messages' changes
+
+  // Effect to scroll to the latest message or indicator whenever messages or typing state changes
   useEffect(() => {
     if (latestMessageRef.current) {
-      latestMessageRef.current.scrollIntoView({ behavior: "smooth" }); // Smooth scroll
+      latestMessageRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isBotTyping]); // Trigger when messages or typing state updates
+  }, [messages, isBotTyping]);
 
   const handleInputChange = (event) => {
     setInput(event.target.value);
@@ -45,11 +80,12 @@ function App() {
       return;
     }
 
-    // Add user message instantly to UI
+    // Add user message instantly to UI and localStorage state
     const userMessage = { type: "user", text: userQuestion };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    // Use functional update to ensure we have the latest messages state for the API call
+    setMessages((prevMessages) => [...prevMessages, userMessage]); // This state update will trigger the save useEffect shortly
     setInput("");
-    setIsLoading(true); // Start overall loading
+    setIsLoading(true);
     setIsBotTyping(true); // Show typing indicator
 
     try {
@@ -57,13 +93,24 @@ function App() {
       if (!apiUrl || apiUrl === "/ask") {
         const errorMsg = "API URL is not configured.";
         console.error(errorMsg);
+        setIsBotTyping(false); // Clear typing indicator
         // Add an error message bubble
         setMessages((prevMessages) => [
           ...prevMessages,
           { type: "error", text: errorMsg },
         ]);
-        return; // Stop execution
+        setIsLoading(false); // Stop overall loading
+        return;
       }
+
+      // Important: Send the history from the *current* state, including the user's message just added
+      // The setMessages call above *might* not have completed yet, so use the functional update pattern
+      // or pass `messages` directly and append the user message. Let's keep it simple by
+      // sending the history from the state *after* we know the user message is added to the queue.
+      // A safer way might be to append the user message directly to the `messages` array *before*
+      // the setMessages call for the send, but relying on React's state batching is usually fine.
+      // Let's pass `[...messages, userMessage]` to the API call directly for clarity.
+      const historyForApi = [...messages, userMessage];
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -72,7 +119,7 @@ function App() {
         },
         body: JSON.stringify({
           question: userQuestion,
-          history: [...messages, userMessage], // Send history including the message just added
+          history: historyForApi, // Send the history including the message just added
         }),
       });
 
@@ -82,7 +129,7 @@ function App() {
       if (!response.ok) {
         const errorData = await response
           .json()
-          .catch(() => ({ error: response.statusText })); // Attempt to parse JSON error, fallback to status text
+          .catch(() => ({ error: response.statusText }));
         const errorMsg = `API Error: ${response.status} - ${
           errorData.error || "Unknown Error"
         }`;
@@ -92,13 +139,14 @@ function App() {
           ...prevMessages,
           { type: "error", text: errorMsg },
         ]);
-        return; // Stop execution after handling error
+        setIsLoading(false); // Stop overall loading
+        return;
       }
 
-      const data = await response.json(); // Parse the JSON response from Flask
+      const data = await response.json();
       const botResponse = { type: "bot", text: data.answer };
 
-      // Add bot response to UI
+      // Add bot response to UI state (this will trigger the save useEffect)
       setMessages((prevMessages) => [...prevMessages, botResponse]);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -110,13 +158,27 @@ function App() {
       ]);
     } finally {
       setIsLoading(false); // Stop overall loading regardless of success or failure
-      // setIsBotTyping(false); // Ensure typing indicator is off (also done in try/catch)
+      // setIsBotTyping is handled in try/catch/return blocks
     }
+  };
+
+  // Function to clear chat history
+  const handleClearHistory = () => {
+    setMessages([]); // Clear state (triggers save useEffect to save empty array)
+    // Optionally, explicitly remove from localStorage, though the save useEffect handles it
+    // localStorage.removeItem(LOCAL_STORAGE_KEY);
+    console.log("Chat history cleared.");
   };
 
   return (
     <div className="chat-container">
       <h1>Bitcoin Chatbot</h1>
+
+      {/* Clear History Button */}
+      <button className="clear-history-button" onClick={handleClearHistory}>
+        Clear History
+      </button>
+
       <div className="chat-box" ref={chatBoxRef}>
         {messages.length === 0 ? (
           <div
@@ -126,15 +188,14 @@ function App() {
           </div>
         ) : (
           messages.map((message, index) => (
-            // Add ref to the last message or the typing indicator
             <div
-              key={index}
+              key={index} // Using index as key is okay for this simple case where messages aren't reordered/deleted mid-list
               className={`message ${message.type}-message`}
               ref={
                 index === messages.length - 1 && !isBotTyping
                   ? latestMessageRef
                   : null
-              } // Only the last message gets the ref if not typing
+              }
             >
               <strong>
                 {message.type === "user"
@@ -144,22 +205,18 @@ function App() {
                   : "Error"}
                 :
               </strong>
-              {/* Render Markdown only for bot messages */}
               {message.type === "bot" ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {message.text}
                 </ReactMarkdown>
               ) : (
-                // Display user/error message as plain text
                 message.text
               )}
             </div>
           ))
         )}
         {/* Loading indicator */}
-        {isBotTyping && (
-          <TypingIndicator ref={latestMessageRef} /> // Typing indicator also gets the ref
-        )}
+        {isBotTyping && <TypingIndicator ref={latestMessageRef} />}
       </div>
 
       {/* Input Form */}
@@ -184,114 +241,141 @@ function App() {
       {/* Basic Styling Block - Add/Refine styles here */}
       <style>{`
            body {
-               font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* More modern font */
+               font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                line-height: 1.6;
                margin: 0;
-               background-color: #e9ecef; /* Light grey background */
-               color: #343a40; /* Dark grey text */
+               background-color: #e9ecef;
+               color: #343a40;
                min-height: 100vh;
                display: flex;
                justify-content: center;
-               align-items: flex-start; /* Align to top */
+               align-items: flex-start;
                padding: 20px;
                box-sizing: border-box;
            }
            .chat-container {
-               width: 100%; /* Use max-width below */
+               width: 100%;
                max-width: 800px;
-               margin: 0 auto; /* Center horizontally */
+               margin: 0 auto;
                background-color: #ffffff;
                padding: 20px;
-               border-radius: 10px; /* More rounded corners */
-               box-shadow: 0 5px 15px rgba(0,0,0,0.1); /* Softer shadow */
+               border-radius: 10px;
+               box-shadow: 0 5px 15px rgba(0,0,0,0.1);
                display: flex;
                flex-direction: column;
-               height: 90vh; /* Keep height */
+               height: 90vh;
                box-sizing: border-box;
-               overflow: hidden; /* Hide overflow of chat-box */
+               overflow: hidden;
+               position: relative; /* Needed for positioning clear button */
            }
             @media (max-width: 768px) {
                  .chat-container {
-                     height: 95vh; /* Taller on smaller screens */
+                     height: 95vh;
                      margin: 0;
                      padding: 15px;
                  }
             }
 
-
            h1 {
                text-align: center;
-               color: #f7931a; /* Bitcoin orange */
+               color: #f7931a;
                margin-top: 0;
                margin-bottom: 20px;
-               font-size: 1.8em; /* Slightly larger heading */
+               font-size: 1.8em;
            }
+
+           /* Style for the Clear History Button */
+            .clear-history-button {
+                position: absolute;
+                top: 20px; /* Adjust position as needed */
+                right: 20px; /* Adjust position as needed */
+                padding: 5px 10px;
+                background-color: #ced4da; /* Light grey */
+                color: #495057; /* Darker grey text */
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 0.8em;
+                transition: background-color 0.2s ease-in-out;
+                z-index: 10; /* Ensure it's above other elements */
+            }
+            .clear-history-button:hover {
+                background-color: #adb5bd; /* Slightly darker grey */
+            }
+            @media (max-width: 768px) {
+                 .clear-history-button {
+                     top: 15px;
+                     right: 15px;
+                 }
+            }
+
+
            .chat-box {
                flex-grow: 1;
-               border: 1px solid #dee2e6; /* Lighter border */
+               border: 1px solid #dee2e6;
                padding: 15px;
                margin-bottom: 15px;
-               border-radius: 8px; /* More rounded corners */
-               overflow-y: auto; /* Add scroll for overflow */
+               border-radius: 8px;
+               overflow-y: auto;
                display: flex;
                flex-direction: column;
-               padding-bottom: 15px; /* Add padding at the bottom */
+               padding-bottom: 15px;
            }
-           /* Hide scrollbar for a cleaner look */
             .chat-box::-webkit-scrollbar { display: none; }
-            .chat-box { -ms-overflow-style: none; scrollbar-width: none; } /* IE and Edge */
+            .chat-box { -ms-overflow-style: none; scrollbar-width: none; }
 
 
            .message {
-               margin-bottom: 15px; /* Increased margin */
-               padding: 12px 15px; /* More padding */
-               border-radius: 18px; /* Pill-shaped corners */
-               max-width: 85%; /* Allow messages to be a bit wider */
+               margin-bottom: 15px;
+               padding: 12px 15px;
+               border-radius: 18px;
+               max-width: 85%;
                word-wrap: break-word;
-               position: relative; /* Needed for potential bubble tails */
+               position: relative;
                line-height: 1.5;
            }
             .message:last-child {
-                 margin-bottom: 0; /* No margin on the very last message */
+                 margin-bottom: 0;
             }
 
            .user-message {
                align-self: flex-end;
-               background-color: #007bff; /* Primary blue */
+               background-color: #007bff;
                color: white;
-               border-bottom-right-radius: 5px; /* Pointy corner */
+               border-bottom-right-radius: 5px;
            }
            .bot-message {
                align-self: flex-start;
-               background-color: #e9ecef; /* Light grey */
-               color: #343a40; /* Dark text */
-               border-bottom-left-radius: 5px; /* Pointy corner */
+               background-color: #e9ecef;
+               color: #343a40;
+               border-bottom-left-radius: 5px;
            }
             .error-message {
-                align-self: center; /* Center error messages */
-                background-color: #dc3545; /* Danger red */
+                align-self: center;
+                background-color: #dc3545;
                 color: white;
                 font-weight: bold;
                 max-width: 90%;
                 text-align: center;
-                border-radius: 8px; /* Less rounded for errors */
+                border-radius: 8px;
+                margin-top: 10px; /* Add margin top to error bubbles */
             }
 
            .message strong {
                 display: block;
-                margin-bottom: 5px; /* More margin below name */
-                font-size: 0.9em; /* Smaller name */
-                opacity: 0.8; /* Make name slightly less prominent */
+                margin-bottom: 5px;
+                font-size: 0.9em;
+                opacity: 0.8;
             }
-             .user-message strong { color: rgba(255, 255, 255, 0.8); } /* Lighter name for user */
-             .bot-message strong { color: rgba(52, 58, 64, 0.8); } /* Slightly lighter name for bot */
+             .user-message strong { color: rgba(255, 255, 255, 0.8); }
+             .bot-message strong { color: rgba(52, 58, 64, 0.8); }
 
 
            /* Typing Indicator Styles */
             .loading-message {
                 font-style: italic;
                 color: #555;
-                background-color: #e9ecef; /* Match bot bubble */
+                background-color: #e9ecef;
             }
             .typing-dots span {
                 animation: blink 1s infinite steps(1, start);
@@ -313,28 +397,28 @@ function App() {
                display: flex;
                margin-top: auto;
                padding-top: 15px;
-               border-top: 1px solid #dee2e6; /* Lighter separator line */
-               gap: 10px; /* Space between input and button */
+               border-top: 1px solid #dee2e6;
+               gap: 10px;
            }
            input[type="text"] {
                flex-grow: 1;
-               padding: 12px 15px; /* Match message padding */
-               border: 1px solid #ced4da; /* Lighter border */
-               border-radius: 25px; /* Pill shape */
+               padding: 12px 15px;
+               border: 1px solid #ced4da;
+               border-radius: 25px;
                font-size: 1em;
                outline: none;
                transition: border-color 0.2s ease-in-out;
            }
            input[type="text"]:focus {
-               border-color: #007bff; /* Highlight on focus */
+               border-color: #007bff;
            }
 
            button {
-               padding: 12px 25px; /* Match message padding */
+               padding: 12px 25px;
                background-color: #f7931a;
                color: white;
                border: none;
-               border-radius: 25px; /* Pill shape */
+               border-radius: 25px;
                cursor: pointer;
                font-size: 1em;
                transition: background-color 0.2s ease-in-out;
@@ -352,21 +436,20 @@ function App() {
                margin-top: 15px;
                text-align: center;
                font-size: 0.8em;
-               color: #6c757d; /* Grey color */
+               color: #6c757d;
            }
 
            /* --- Styles for Markdown elements within bot messages --- */
-           /* Target elements only within bot-message */
            .bot-message p { margin-bottom: 0.5em; }
-           .bot-message p:last-child { margin-bottom: 0; } /* Remove margin from last paragraph in a message */
+           .bot-message p:last-child { margin-bottom: 0; }
            .bot-message ul, .bot-message ol { margin-bottom: 0.5em; padding-left: 20px; }
            .bot-message li { margin-bottom: 0.2em; }
-            .bot-message li > p { margin-bottom: 0 !important; display: inline; } /* Remove margin from paragraphs inside lists */
+            .bot-message li > p { margin-bottom: 0 !important; display: inline; }
             .bot-message code {
-                background-color: rgba(0,0,0,0.08); /* Slightly transparent dark */
+                background-color: rgba(0,0,0,0.08);
                 padding: 2px 4px;
                 border-radius: 4px;
-                font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; /* Better monospace stack */
+                font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
                 font-size: 0.9em;
             }
            .bot-message pre {
@@ -380,16 +463,16 @@ function App() {
                 margin-bottom: 0.5em;
            }
            .bot-message blockquote {
-               border-left: 4px solid #007bff; /* Blue border */
+               border-left: 4px solid #007bff;
                padding-left: 15px;
                margin-left: 0;
-               color: #495057; /* Darker grey */
+               color: #495057;
                font-style: italic;
                margin-top: 0.5em;
                margin-bottom: 0.5em;
            }
             .bot-message table {
-                width: 100%; /* Tables take full width */
+                width: 100%;
                 border-collapse: collapse;
                 margin-top: 0.5em;
                 margin-bottom: 0.5em;
@@ -404,9 +487,9 @@ function App() {
                  font-weight: bold;
             }
              .bot-message img {
-                 max-width: 100%; /* Prevent images from overflowing */
+                 max-width: 100%;
                  height: auto;
-                 display: block; /* Prevent extra space below image */
+                 display: block;
                  margin-top: 0.5em;
                  margin-bottom: 0.5em;
             }
