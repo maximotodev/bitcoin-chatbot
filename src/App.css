@@ -1,4 +1,677 @@
-#root {
+/* Basic Styling Block - Add/Refine styles here */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  background-color: #e9ecef;
+  color: #343a40;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.chat-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+@media (max-width: 768px) {
+  .chat-container {
+    height: 95vh;
+    margin: 0;
+    padding: 15px;
+  }
+}
+
+h1 {
+  text-align: center;
+  color: #f7931a;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+/* Container for the buttons */
+.button-container {
+  display: flex;
+  justify-content: center; /* Center buttons */
+  gap: 10px; /* Space between buttons */
+  margin-bottom: 15px; /* Space below buttons */
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+}
+
+/* Style for the Tour Button */
+.tour-button {
+  padding: 8px 15px;
+  background-color: #28a745; /* Success green */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease-in-out;
+}
+.tour-button:hover:not(:disabled) {
+  background-color: #218838; /* Darker green */
+}
+
+/* Style for the Clear History Button */
+.clear-history-button {
+  padding: 8px 15px;
+  background-color: #ced4da;
+  color: #495057;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease-in-out;
+}
+.clear-history-button:hover:not(:disabled) {
+  background-color: #adb5bd;
+}
+/* Disable style for buttons */
+.button-container button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-box {
+  flex-grow: 1;
+  border: 1px solid #dee2e6;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 15px;
+}
+.chat-box::-webkit-scrollbar {
+  display: none;
+}
+.chat-box {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.message {
+  margin-bottom: 15px;
+  padding: 12px 15px;
+  border-radius: 18px;
+  max-width: 85%;
+  word-wrap: break-word;
+  position: relative;
+  line-height: 1.5;
+}
+.message:last-child {
+  margin-bottom: 0;
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: #007bff;
+  color: white;
+  border-bottom-right-radius: 5px;
+}
+.bot-message {
+  align-self: flex-start;
+  background-color: #e9ecef;
+  color: #343a40;
+  border-bottom-left-radius: 5px;
+}
+.error-message {
+  align-self: center;
+  background-color: #dc3545;
+  color: white;
+  font-weight: bold;
+  max-width: 90%;
+  text-align: center;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.message strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+.user-message strong {
+  color: rgba(255, 255, 255, 0.8);
+}
+.bot-message strong {
+  color: rgba(52, 58, 64, 0.8);
+}
+
+/* Typing Indicator Styles */
+.loading-message {
+  font-style: italic;
+  color: #555;
+  background-color: #e9ecef;
+}
+.typing-dots span {
+  animation: blink 1s infinite steps(1, start);
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+form {
+  display: flex;
+  margin-top: auto;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+  gap: 10px;
+}
+input[type="text"] {
+  flex-grow: 1;
+  padding: 12px 15px;
+  border: 1px solid #ced4da;
+  border-radius: 25px;
+  font-size: 1em;
+  outline: none;
+  transition: border-color 0.2s ease-in-out;
+}
+input[type="text"]:focus {
+  border-color: #007bff;
+}
+
+button {
+  /* Applies to form submit button */
+  padding: 12px 25px;
+  background-color: #f7931a;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.2s ease-in-out;
+}
+button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+button:hover:not(:disabled) {
+  background-color: #e08516;
+}
+
+.disclaimer {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 0.8em;
+  color: #6c757d;
+}
+
+/* --- Styles for Markdown elements within bot messages --- */
+.bot-message p {
+  margin-bottom: 0.5em;
+}
+.bot-message p:last-child {
+  margin-bottom: 0;
+}
+.bot-message ul,
+.bot-message ol {
+  margin-bottom: 0.5em;
+  padding-left: 20px;
+}
+.bot-message li {
+  margin-bottom: 0.2em;
+}
+.bot-message li > p {
+  margin-bottom: 0 !important;
+  display: inline;
+}
+.bot-message code {
+  background-color: rgba(0, 0, 0, 0.08);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  font-size: 0.9em;
+}
+.bot-message pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  font-size: 0.9em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.bot-message blockquote {
+  border-left: 4px solid #007bff;
+  padding-left: 15px;
+  margin-left: 0;
+  color: #495057;
+  font-style: italic;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.bot-message table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.bot-message th,
+.bot-message td {
+  border: 1px solid #dee2e6;
+  padding: 8px;
+  text-align: left;
+}
+.bot-message th {
+  background-color: #e9ecef;
+  font-weight: bold;
+}
+.bot-message img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+/* --- General Body and Layout --- */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  background-color: #f8f9fa; /* Very light grey background */
+  color: #343a40; /* Dark grey text */
+  min-height: 100vh;
+  display: flex;
+  justify-content: center; /* Center content horizontally */
+  align-items: flex-start; /* Align content to the top */
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.chat-container {
+  width: 100%;
+  max-width: 800px; /* Max width for desktop */
+  margin: 0 auto; /* Center horizontally */
+  background-color: #ffffff; /* White background for chat box */
+  padding: 20px; /* Padding inside the container */
+  border-radius: 10px; /* More rounded corners */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* Softer shadow */
+  display: flex;
+  flex-direction: column;
+  height: 90vh; /* Fixed height for the container */
+  box-sizing: border-box;
+  overflow: hidden; /* Hide overflow within the container */
+  position: relative; /* Needed for positioning clear button */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  body {
+    padding: 10px; /* Less padding on mobile */
+  }
+  .chat-container {
+    height: 95vh; /* Taller on smaller screens */
+    margin: 0;
+    padding: 15px; /* Less padding inside */
+    border-radius: 0; /* Optional: remove border-radius on mobile */
+    box-shadow: none; /* Optional: remove shadow on mobile */
+  }
+}
+
+/* --- Header --- */
+h1 {
+  text-align: center;
+  color: #f7931a; /* Bitcoin orange */
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.8em; /* Slightly larger heading */
+  border-bottom: 1px solid #e9ecef; /* Subtle separator */
+  padding-bottom: 15px;
+}
+
+/* --- Button Container --- */
+.button-container {
+  display: flex;
+  justify-content: center; /* Center buttons */
+  gap: 10px; /* Space between buttons */
+  margin-bottom: 15px; /* Space below buttons */
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+}
+
+/* --- Button Styles (Common) --- */
+.button-container button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.button-container button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Specific Button Styles --- */
+.tour-button {
+  background-color: #28a745; /* Success green */
+  color: white;
+}
+.tour-button:hover:not(:disabled) {
+  background-color: #218838; /* Darker green */
+}
+
+.clear-history-button {
+  background-color: #ced4da; /* Light grey */
+  color: #495057; /* Darker grey text */
+}
+.clear-history-button:hover:not(:disabled) {
+  background-color: #adb5bd; /* Slightly darker grey */
+}
+
+/* --- Chat Box Area --- */
+.chat-box {
+  flex-grow: 1; /* Takes up remaining space */
+  /* Removed border and padding to let messages fill the space better */
+  /* border: 1px solid #dee2e6; */
+  /* padding: 15px; */
+  margin-bottom: 15px;
+  border-radius: 8px; /* Still round the overall area */
+  overflow-y: auto; /* Add scroll for overflow */
+  display: flex;
+  flex-direction: column;
+  /* padding-bottom: 15px; Add padding at the bottom handled by message margin */
+}
+
+/* Hide scrollbar for a cleaner look */
+.chat-box::-webkit-scrollbar {
+  display: none;
+}
+.chat-box {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+} /* IE and Edge */
+
+/* --- Message Bubbles --- */
+.message {
+  margin-bottom: 15px; /* Space between messages */
+  padding: 12px 15px; /* Padding inside bubble */
+  border-radius: 18px; /* Pill-shaped corners */
+  max-width: 85%; /* Allow messages to be a bit wider */
+  word-wrap: break-word; /* Prevent long words from overflowing */
+  position: relative; /* Needed for potential bubble tails */
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Subtle shadow on bubbles */
+}
+
+/* Remove margin from the very last message */
+.message:last-child {
+  margin-bottom: 0;
+}
+
+/* User Message Styles */
+.user-message {
+  align-self: flex-end; /* Align to the right */
+  background-color: #007bff; /* Primary blue */
+  color: white;
+  border-bottom-right-radius: 5px; /* Pointy corner on the bottom right */
+}
+/* Optional: Add a small bubble tail */
+/* .user-message::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: -7px;
+  width: 15px;
+  height: 15px;
+  background-color: #007bff;
+  clip-path: polygon(100% 0, 0% 100%, 100% 100%);
+} */
+
+/* Bot Message Styles */
+.bot-message {
+  align-self: flex-start; /* Align to the left */
+  background-color: #e9ecef; /* Light grey */
+  color: #343a40; /* Dark text */
+  border-bottom-left-radius: 5px; /* Pointy corner on the bottom left */
+}
+/* Optional: Add a small bubble tail */
+/* .bot-message::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -7px;
+  width: 15px;
+  height: 15px;
+  background-color: #e9ecef;
+  clip-path: polygon(0 0, 0% 100%, 100% 100%);
+} */
+
+/* Error Message Styles */
+.error-message {
+  align-self: center; /* Center error messages */
+  background-color: #dc3545; /* Danger red */
+  color: white;
+  font-weight: bold;
+  max-width: 90%;
+  text-align: center;
+  border-radius: 8px; /* Less rounded for errors */
+  margin-top: 10px; /* Add margin top to error bubbles */
+  margin-bottom: 15px; /* Ensure space below error */
+  padding: 10px 15px; /* Slightly less padding */
+}
+
+/* Message Sender Name (You/Chatbot) */
+.message strong {
+  display: block;
+  margin-bottom: 5px; /* More margin below name */
+  font-size: 0.9em; /* Smaller name */
+  opacity: 0.8; /* Make name slightly less prominent */
+}
+.user-message strong {
+  color: rgba(255, 255, 255, 0.8); /* Lighter name for user */
+}
+.bot-message strong {
+  color: rgba(52, 58, 64, 0.8); /* Slightly lighter name for bot */
+}
+
+/* --- Typing Indicator Styles --- */
+.loading-message {
+  font-style: italic;
+  color: #555;
+  background-color: #e9ecef; /* Match bot bubble */
+  align-self: flex-start; /* Align with bot messages */
+  border-bottom-left-radius: 5px; /* Match bot bubble shape */
+}
+.typing-dots span {
+  animation: blink 1s infinite steps(1, start);
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* --- Input Form --- */
+form {
+  display: flex;
+  margin-top: auto; /* Push form to the bottom */
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6; /* Lighter separator line */
+  gap: 10px; /* Space between input and button */
+  align-items: center; /* Vertically align items */
+}
+
+input[type="text"] {
+  flex-grow: 1; /* Take available space */
+  padding: 12px 15px; /* Match message padding */
+  border: 1px solid #ced4da; /* Lighter border */
+  border-radius: 25px; /* Pill shape */
+  font-size: 1em;
+  outline: none; /* Remove default focus outline */
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+input[type="text"]:focus {
+  border-color: #007bff; /* Highlight border on focus */
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Add a subtle shadow on focus */
+}
+
+/* --- Form Submit Button --- */
+form button {
+  /* Targets the button specifically inside the form */
+  padding: 12px 25px;
+  background-color: #f7931a; /* Bitcoin orange */
+  color: white;
+  border: none;
+  border-radius: 25px; /* Pill shape */
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+form button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+form button:hover:not(:disabled) {
+  background-color: #e08516; /* Darker orange */
+}
+
+/* --- Disclaimer Text --- */
+.disclaimer {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 0.8em;
+  color: #6c757d; /* Grey color */
+}
+
+/* --- Styles for Markdown elements within bot messages --- */
+/* Target elements only within bot-message */
+.bot-message p {
+  margin-bottom: 0.5em;
+}
+.bot-message p:last-child {
+  margin-bottom: 0;
+} /* Remove margin from last paragraph in a message */
+
+.bot-message ul,
+.bot-message ol {
+  margin-bottom: 0.5em;
+  padding-left: 25px; /* Slightly more padding for lists */
+}
+.bot-message li {
+  margin-bottom: 0.4em; /* More space between list items */
+}
+/* Ensure paragraphs inside list items don't add extra margin */
+.bot-message li > p {
+  margin-bottom: 0 !important;
+  display: inline;
+}
+
+.bot-message code {
+  background-color: rgba(0, 0, 0, 0.08); /* Slightly transparent dark */
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace; /* Better monospace stack */
+  font-size: 0.9em;
+}
+
+.bot-message pre {
+  /* Code blocks */
+  background-color: #e9ecef; /* Match bot bubble light grey */
+  border: 1px solid #dee2e6; /* Subtle border */
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto; /* Prevent overflow for long code lines */
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+  font-size: 0.9em;
+  margin-top: 0.8em; /* More space above code blocks */
+  margin-bottom: 0.8em; /* More space below code blocks */
+}
+
+.bot-message blockquote {
+  border-left: 4px solid #007bff; /* Blue border */
+  padding-left: 15px;
+  margin-left: 0;
+  color: #495057; /* Darker grey */
+  font-style: italic;
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+  background-color: rgba(0, 123, 255, 0.05); /* Light blue background */
+  padding: 10px 15px; /* More padding */
+  border-radius: 4px; /* Soft corners */
+}
+
+/* Table Styling */
+.bot-message table {
+  width: 100%; /* Tables take full width */
+  border-collapse: collapse;
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+  font-size: 0.9em;
+}
+.bot-message th,
+.bot-message td {
+  border: 1px solid #dee2e6; /* Lighter border */
+  padding: 8px;
+  text-align: left;
+}
+.bot-message th {
+  background-color: #f8f9fa; /* Match body background */
+  font-weight: bold;
+}
+.bot-message tr:nth-child(even) {
+  background-color: #e9ecef; /* Stripe even rows */
+}
+
+/* Image Styling (if AI generates images, though rare) */
+.bot-message img {
+  max-width: 100%; /* Prevent images from overflowing */
+  height: auto;
+  display: block; /* Prevent extra space below image */
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+/* #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
@@ -39,4 +712,4 @@
 
 .read-the-docs {
   color: #888;
-}
+} */
